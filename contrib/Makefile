@@ -8,6 +8,7 @@ SUBDIRS = \
 		adminpack	\
 		auth_delay	\
 		auto_explain	\
+		binary_search \
 		bloom		\
 		btree_gin	\
 		btree_gist	\
