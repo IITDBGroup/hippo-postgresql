@@ -20,7 +20,7 @@
 #include "utils/varbit.h"
 #include "utils/lsyscache.h"
 #include "binary_search.h"
-
+#include "ewok.h"
 
 PG_MODULE_MAGIC;
 
@@ -121,6 +121,55 @@ set_bit_on(PG_FUNCTION_ARGS)
 
 	PG_RETURN_VARBIT_P(result);
 }
+
+/*
+ * Bit-ors two input varbits and stores the result in the left input. Ors 8 bytes at a time.
+ */
+PG_FUNCTION_INFO_V1(fast_no_copy_bit_or);
+Datum
+fast_no_copy_bit_or(PG_FUNCTION_ARGS)
+{
+	VarBit	   *arg1;
+	VarBit	   *arg2;
+	int		   	bitlen1,
+				bitlen2,
+				i;
+	uint64	   *p1,
+		       *p2;
+	bits8      *r1,
+		       *r2;
+	int         wordlen;           // number of words in the bitvector
+	int         leftover_bytes;    // number of left over bytes at the end that do not make up a full word
+
+	if (PG_ARGISNULL(0))
+		PG_RETURN_VARBIT_P(PG_GETARG_VARBIT_P(1));
+	arg1 = PG_GETARG_VARBIT_P(0);
+	arg2 = PG_GETARG_VARBIT_P(1);
+	bitlen1 = VARBITLEN(arg1);
+	bitlen2 = VARBITLEN(arg2);
+	wordlen = bitlen1 / BITS_IN_WORD;
+	leftover_bytes = ((bitlen1 - (wordlen * BITS_IN_WORD)) + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+
+	if (bitlen1 != bitlen2)
+		ereport(ERROR,
+				(errcode(ERRCODE_STRING_DATA_LENGTH_MISMATCH),
+				 errmsg("cannot OR bit strings of different sizes")));
+
+	// bit-or in wordsized chunks
+	p1 = ((uint64 *) VARBITS(arg1)) - 1;
+	p2 = ((uint64 *) VARBITS(arg2)) - 1;
+	for (i = 0; i < wordlen; i++)
+		*p1 = *++p1 | *++p2;
+
+	// deal with remaining bytes
+	r1 = ((bits8 *) p1) - 1;
+	r2 = ((bits8 *) p2) - 1;
+	for (i = 0; i < leftover_bytes; i++)
+		*r1 = *++r1 | *++r2;
+
+	PG_RETURN_VARBIT_P(arg1);
+}
+
 
 
 

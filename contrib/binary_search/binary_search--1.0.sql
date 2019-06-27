@@ -44,3 +44,16 @@ CREATE AGGREGATE set_bits(int8)
 	stype = varbit,
 	initcond = '0'
 );
+
+CREATE FUNCTION fast_no_copy_bit_or(varbit, varbit)
+	RETURNS varbit
+	AS 'MODULE_PATHNAME'
+	LANGUAGE C
+	IMMUTABLE STRICT
+	PARALLEL SAFE;
+
+CREATE AGGREGATE fast_bit_or(varbit)
+(
+	sfunc = fast_no_copy_bit_or,
+	stype = varbit
+);
