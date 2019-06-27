@@ -18,3 +18,29 @@ CREATE FUNCTION binary_search_array_pos(int8[], int8)
 	LANGUAGE C
 	IMMUTABLE STRICT
 	PARALLEL SAFE;
+
+CREATE FUNCTION binary_search_in_bucket(int8[], int8)
+	RETURNS boolean
+	AS 'MODULE_PATHNAME'
+	LANGUAGE C
+	IMMUTABLE STRICT
+	PARALLEL SAFE;
+
+-- CREATE FUNCTION sql_bit_on(varbit, integer) RETURNS varbit
+--     AS 'select set_bit($1,$2,1);'
+--     LANGUAGE SQL
+--     IMMUTABLE STRICT;
+
+CREATE FUNCTION set_bit_on(varbit, int8)
+	RETURNS varbit
+	AS 'MODULE_PATHNAME'
+	LANGUAGE C
+	IMMUTABLE STRICT
+	PARALLEL SAFE;
+
+CREATE AGGREGATE set_bits(int8)
+(
+	sfunc = set_bit_on,
+	stype = varbit,
+	initcond = '0'
+);

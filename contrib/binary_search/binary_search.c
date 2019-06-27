@@ -17,10 +17,16 @@
 #include "fmgr.h"
 #include "utils/builtins.h"
 #include "utils/array.h"
+#include "utils/varbit.h"
 #include "utils/lsyscache.h"
 #include "binary_search.h"
 
+
 PG_MODULE_MAGIC;
+
+#define MIN(A, B) ((B)<(A)?(B):(A))
+#define MAX(A, B) ((B)>(A)?(B):(A))
+
 
 //TODO use later
 enum binary_search_type
@@ -42,7 +48,7 @@ PG_FUNCTION_INFO_V1(binary_search_array_contains);
 Datum
 binary_search_array_contains(PG_FUNCTION_ARGS)
 {
-	int pos;
+	int32 pos;
 	Datum ret;
 	bool result;
 
@@ -52,6 +58,70 @@ binary_search_array_contains(PG_FUNCTION_ARGS)
 
 	PG_RETURN_BOOL(result);
 }
+
+
+PG_FUNCTION_INFO_V1(binary_search_in_bucket);
+Datum
+binary_search_in_bucket(PG_FUNCTION_ARGS)
+{
+	bool isThere = FALSE;
+	Datum ret;
+	int32 pos;
+
+	ret = binary_search_array_position(fcinfo);
+	pos = DatumGetInt16(ret);
+	isThere = (pos % 2);
+
+	PG_RETURN_BOOL(isThere);
+}
+
+#define SET_BIT_MIN_RESULT_BITS 100
+#define SET_BIT_MAX_GROWTH_STEP 1000
+
+PG_FUNCTION_INFO_V1(set_bit_on);
+Datum
+set_bit_on(PG_FUNCTION_ARGS)
+{
+	VarBit *v = PG_GETARG_VARBIT_P(0);
+	VarBit *result = v;
+	int32 pos = PG_GETARG_INT64(1);
+	int bitlen,
+		len;
+	bits8 *r,
+		  *p;
+	int	byteNo,
+		bitNo;
+
+	bitlen = VARBITLEN(v);
+	// ignore smaller than 0 positions
+	if (pos < 0)
+		PG_RETURN_VARBIT_P(result);
+	// grow varbit if input not of sufficient length
+	if (pos >= bitlen)
+	{
+		// double in size until we go beyond 1000 bits. Also make sure the result is at least 100 bits to avoid repeated copying
+		bitlen = MAX(SET_BIT_MIN_RESULT_BITS, MIN(2 * bitlen, pos + 1 + SET_BIT_MAX_GROWTH_STEP));
+		len = VARBITTOTALLEN(bitlen);
+		result = (VarBit *) palloc0(len);
+		SET_VARSIZE(result, len);
+		VARBITLEN(result) = bitlen;
+
+		p = VARBITS(v);
+		r = VARBITS(result);
+
+		memcpy(r, p, VARBITBYTES(v));
+	}
+	else
+		r = VARBITS(result);
+
+	byteNo = pos / BITS_PER_BYTE;
+	bitNo = BITS_PER_BYTE - 1 - (pos % BITS_PER_BYTE);
+
+	r[byteNo] |= (1 << bitNo);
+
+	PG_RETURN_VARBIT_P(result);
+}
+
 
 
 static Datum

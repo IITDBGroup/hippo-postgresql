@@ -19,5 +19,7 @@
 
 extern Datum binary_search_array_pos(PG_FUNCTION_ARGS);
 extern Datum binary_search_array_contains(PG_FUNCTION_ARGS);
+extern Datum binary_search_in_bucket(PG_FUNCTION_ARGS);
+
 
 #endif   /* ISN_H */
