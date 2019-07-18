@@ -162,8 +162,8 @@ fast_no_copy_bit_or(PG_FUNCTION_ARGS)
 		*p1 = *++p1 | *++p2;
 
 	// deal with remaining bytes
-	r1 = ((bits8 *) p1) - 1;
-	r2 = ((bits8 *) p2) - 1;
+	r1 = ((bits8 *) (p1 + 1)) - 1;
+	r2 = ((bits8 *) (p2 + 1)) - 1;
 	for (i = 0; i < leftover_bytes; i++)
 		*r1 = *++r1 | *++r2;
 
